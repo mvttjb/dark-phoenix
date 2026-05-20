@@ -1,25 +1,7 @@
-import glob
-import json
-import pathlib
-import pickle
-import shutil
-import subprocess
-import time
-import uuid
-import boto3
-import cv2
+import modal
+from pydantic import BaseModel
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-import ffmpegcv
-import modal
-import numpy as np
-from pydantic import BaseModel
-import os
-from google import genai
-
-import pysubs2
-from tqdm import tqdm
-import whisperx
 
 
 class ProcessVideoRequest(BaseModel):
@@ -28,14 +10,35 @@ class ProcessVideoRequest(BaseModel):
 
 image = (modal.Image.from_registry(
     "nvidia/cuda:12.4.0-devel-ubuntu22.04", add_python="3.11")
-    .apt_install(["ffmpeg", "libgl1-mesa-glx", "wget", "libcudnn8", "libcudnn8-dev", "pkg-config", "libavformat-dev", "libavcodec-dev", "libavdevice-dev", "libavutil-dev", "libswscale-dev", "libswresample-dev", "libavfilter-dev", "clang", "build-essential", "gcc", "git"])
-    .pip_install_from_requirements("requirements.txt")
+    .apt_install(["ffmpeg", "libgl1-mesa-glx", "wget", "libcudnn8", "libcudnn8-dev", "pkg-config", "libavformat-dev", "libavcodec-dev", "libavdevice-dev", 
+                  "libavutil-dev", "libswscale-dev", "libswresample-dev", "libavfilter-dev", "clang", "build-essential", "gcc", "git"])
+    .pip_install("pip", "setuptools<81", "wheel", "Cython", "numpy<2.0")
+    .pip_install_from_requirements("requirements.txt", extra_options="--no-build-isolation")
     .run_commands([
         "mkdir -p /usr/share/fonts/truetype/custom",
         "wget -O /usr/share/fonts/truetype/custom/Anton-Regular.ttf https://github.com/google/fonts/raw/main/ofl/anton/Anton-Regular.ttf",
         "fc-cache -f -v",
     ])
     .add_local_dir("asd", "/asd", copy=True))
+
+with image.imports():
+    import glob
+    import json
+    import pathlib
+    import pickle
+    import shutil
+    import subprocess
+    import time
+    import uuid
+    import boto3
+    import cv2
+    import ffmpegcv
+    import numpy as np
+    import os
+    from google import genai
+    import pysubs2
+    from tqdm import tqdm
+    import whisperx
 
 app = modal.App("ai-podcast-clipper", image=image)
 
